@@ -120,6 +120,7 @@ _FOREIGN_KO = [
     r"(?:u\.?s\.? citizen(?:ship)?|us person|green card|permanent resident(?:s|cy)?) (?:is |are )?required",
     r"must be a (?:u\.?s\.?|us|uk|canadian|australian) (?:citizen|national|resident)",
     r"security clearance",
+    r"\bitar\b|\bu\.?s\.? persons?\b|must be a u\.?s\.? citizen",
     r"(?:immatrikuliert|eingeschrieben) an einer deutschen (?:hochschule|universitat|fachhochschule)",
     r"(?:student|studierende)[a-z ]{0,30}einer deutschen (?:hochschule|universitat)",
     r"ingeschreven (?:aan|bij) een nederlandse",

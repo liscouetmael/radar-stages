@@ -55,6 +55,12 @@ def fetch_company(c, ctx):
     out = []
     limit = c.get("max_offers", 600)
     for oid, (path, title_attr, info) in list(cards.items())[:limit]:
+        # Fiche déjà connue : on ne retélécharge pas sa page (une requête par
+        # offre), sauf lors du rafraîchissement complet hebdomadaire.
+        known = ctx.get("previous", {}).get(f"ts-{c['name'].lower()}-{oid}")
+        if known and not ctx.get("refresh"):
+            out.append(dict(known, _cached=True))
+            continue
         # title attr : "Intitulé (Réf. : 2026-42240) - Domaine"
         tm = re.match(r"\s*(.*?)\s*\(R[ée]f\.? : [^)]*\)\s*(?:-\s*(.*))?$", title_attr)
         title, domain = (tm.group(1), tm.group(2) or "") if tm else (title_attr, "")

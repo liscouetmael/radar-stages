@@ -15,6 +15,13 @@ def test_internship_detection():
     assert not is_internship("Internal Audit Manager")
     assert not is_internship("Early-stage Investor")
     assert not is_internship("Alternance - Chargé de communication")
+    # "stage" anglais (étage de fusée) ≠ stage
+    assert not is_internship("Manufacturing Engineer I, Stage Machining")
+    assert not is_internship("Second Stage Propulsion Engineer")
+    assert is_internship("STAGE 2027 - Gestion de Projet IA (H/F)")
+    assert is_internship("Data Engineer - Stage de fin d'études")
+    assert is_internship("Ingénieur simulation (stage)")
+    assert is_internship("Simulation Monte-Carlo - Stage H/F")
 
 
 def test_foreign_excluded():
@@ -22,6 +29,7 @@ def test_foreign_excluded():
     assert f("You must be authorized to work in the United States without sponsorship", "US") == "ko"
     assert f("We are unable to sponsor visas for this role", "GB") == "ko"
     assert f("Immatrikuliert an einer deutschen Hochschule") == "ko"
+    assert f("Employees must be a U.S. citizen or lawful permanent resident (ITAR)", "US") == "ko"
 
 
 def test_foreign_accepted():
@@ -59,6 +67,9 @@ def test_country():
     assert guess_country("75 - Paris 8e Arrondissement") == "FR"
     assert guess_country("London, United Kingdom") == "GB"
     assert guess_country("Taiwan, Taipei") == "TW"
+    assert guess_country("Munich, DE") == "DE"
+    assert guess_country("Toronto, CA") == "CA"
+    assert guess_country("Long Beach, CA") == "US"
 
 
 def test_sector():

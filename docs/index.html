@@ -108,6 +108,17 @@
           <select id="source"><option value="">Toutes</option></select>
         </div>
 
+        <div class="field">
+          <span class="label">Entreprises masquées</span>
+          <div id="banned" class="chips"></div>
+          <form id="addBan" class="add-kw">
+            <input id="banInput" type="text" list="companyList" placeholder="Nom d'une entreprise…" autocomplete="off">
+            <datalist id="companyList"></datalist>
+            <button type="submit" class="btn small ghost">Masquer</button>
+          </form>
+          <p class="hint">Tu peux aussi cliquer sur « masquer » à côté du nom d'une entreprise dans les résultats.</p>
+        </div>
+
         <label class="check"><input type="checkbox" id="matchOnly" checked> Seulement les offres contenant au moins un de mes mots-clés</label>
         <label class="check"><input type="checkbox" id="favOnly"> Seulement mes favoris</label>
         <button type="button" class="link" id="reset">Réinitialiser les filtres</button>

@@ -151,8 +151,9 @@ def guess_country(location: str) -> str:
     parts = [p.strip(" .()") for p in re.split(r"[,/|;\-–]\s|,", loc) if p.strip()]
     for p in reversed(parts):
         if p in _ALIAS and (len(p) > 2 or p.upper() in COUNTRIES):
-            # "ca" = California en contexte US ; on traite les états d'abord
-            if p in US_STATES and len(parts) > 1:
+            # Code ambigu ("ca" = Canada ou Californie, "de" = Allemagne ou
+            # Delaware) : on tranche avec la ville, sinon on suppose un État US.
+            if p in US_STATES and len(parts) > 1 and _CITY.get(parts[0]) != _ALIAS[p]:
                 return "US"
             return _ALIAS[p]
         if p in US_STATES and len(parts) > 1:

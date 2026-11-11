@@ -47,10 +47,19 @@ _NOT_INTERN = re.compile(
 )
 
 
+# "stage" est aussi un mot anglais ("Second Stage Engineer", "Stage Machining"
+# chez les fabricants de fusées). Seul, il ne compte que dans une tournure française.
+_STAGE_FR = re.compile(
+    r"^[^a-z]*(?:offre de )?stages?\b|\bstage (?:de|en|d|pfe|fin|ingenieur|-|:|/)|"
+    r"[-(/:|] ?stage\b|\bde stage\b|\b(?:h/f|f/h|h/f/x)\b")
+
+
 def is_internship(title: str, extra: str = "") -> bool:
     t = norm(title)
-    if _INTERN.search(t) and not _NOT_INTERN.search(t):
-        return True
+    words = {m.group(1) for m in _INTERN.finditer(t)}
+    if words and not _NOT_INTERN.search(t):
+        if words - {"stage", "stages"} or _STAGE_FR.search(t):
+            return True
     # Certaines sources indiquent le type de contrat à part (ex: "Intern").
     e = norm(extra)
     return bool(e and _INTERN.search(e) and not _NOT_INTERN.search(t))

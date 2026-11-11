@@ -9,7 +9,7 @@ const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
 const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 const MAMMOTH = "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js";
 const PAGE_SIZE = 30;
-const LS = { kw: "rs.keywords", cv: "rs.cvName", fav: "rs.favorites", filters: "rs.filters" };
+const LS = { kw: "rs.keywords", cv: "rs.cvName", fav: "rs.favorites", filters: "rs.filters", ban: "rs.banned" };
 
 // ---------------------------------------------------------------- utils
 const $ = (s) => document.querySelector(s);
@@ -56,6 +56,7 @@ const state = {
   data: null, offers: [], df: new Map(), N: 0,
   keywords: load(LS.kw, null) ?? DEFAULT_KEYWORDS, // [{t, manual}]
   favs: new Set(load(LS.fav, [])),
+  banned: load(LS.ban, []),            // noms d'entreprises masquées (tels qu'affichés)
   zone: "all", shown: PAGE_SIZE, kwCache: new Map(),
 };
 
@@ -86,6 +87,7 @@ async function loadData() {
   state.data = data;
   state.offers = data.offers.map((o) => ({
     ...o,
+    _company: norm(o.company),
     _title: " " + norm(o.title) + " ",
     _body: " " + norm(o.company + " " + o.description) + " ",
     _all: norm(`${o.title} ${o.company} ${o.location} ${regionName(o.country)} ${o.description}`),
@@ -201,9 +203,11 @@ function readFilters() {
     fav: $("#favOnly").checked,
     matchOnly: $("#matchOnly").checked,
     sort: $("#sort").value,
+    banned: new Set(state.banned.map(norm)),
   };
 }
 function passes(o, f, skip) {
+  if (f.banned.has(o._company)) return false;
   if (f.zone === "home" && o.abroad) return false;
   if (f.zone === "abroad") {
     if (!o.abroad) return false;
@@ -285,7 +289,7 @@ const FOREIGN = {
   ko: ["Réservé aux écoles locales", "ko"], unknown: ["Éligibilité non précisée", ""],
 };
 
-function card(o) {
+function card(o, f) {
   const b = [];
   b.push(`<span class="badge accent">${esc(o.sector)}</span>`);
   if (o.abroad && FOREIGN[o.foreign]) { const [l, c] = FOREIGN[o.foreign]; b.push(`<span class="badge ${c}" title="${esc(o.foreign_evidence)}">${l}</span>`); }
@@ -301,12 +305,12 @@ function card(o) {
   const score = state.keywords.length ? `<div class="score"><span class="meter"><i style="width:${o._pct}%"></i></span>
       <span>Pertinence ${o._pct}%</span>${o._hits.length ? `<span class="matched">· ${o._hits.slice(0, 8).map(esc).join(", ")}</span>` : ""}</div>` : "";
 
-  const terms = [...o._hits, ...readFilters().q];
+  const terms = [...o._hits, ...f.q];
   return `<article class="card">
     <div class="card-top">
       <div class="card-main">
         <h3><a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.title)}</a></h3>
-        <div class="sub"><b>${esc(o.company)}</b> · ${esc(o.location || "")}${o.country ? ` (${esc(regionName(o.country))})` : ""} · ${o.posted_estimated ? "repérée " : ""}${relDate(o.posted)}</div>
+        <div class="sub"><b>${esc(o.company)}</b> <button type="button" class="link ban-link" data-ban="${esc(o.company)}" title="Ne plus afficher les offres de ${esc(o.company)}">masquer</button> ·${esc(o.location || "")}${o.country ? ` (${esc(regionName(o.country))})` : ""} · ${o.posted_estimated ? "repérée " : ""}${relDate(o.posted)}</div>
       </div>
       <button class="fav${state.favs.has(o.id) ? " on" : ""}" data-fav="${esc(o.id)}" title="Favori" aria-label="Ajouter aux favoris">${state.favs.has(o.id) ? "★" : "☆"}</button>
     </div>
@@ -335,10 +339,12 @@ function render(resetPage = true) {
     company: (a, b) => a.company.localeCompare(b.company, "fr") || byDate(a, b),
   };
   list.sort(sorters[f.sort]);
+  const hidden = f.banned.size ? state.offers.filter((o) => f.banned.has(o._company)).length : 0;
   $("#count").textContent = `${list.length} offre${list.length > 1 ? "s" : ""}` +
+    (hidden ? ` · ${hidden} masquée${hidden > 1 ? "s" : ""} (entreprises exclues)` : "") +
     (f.sort === "relevance" && !hasKw ? " · ajoute ton CV ou des mots-clés pour trier par pertinence" : "");
   $("#results").innerHTML = list.length
-    ? list.slice(0, state.shown).map(card).join("")
+    ? list.slice(0, state.shown).map((o) => card(o, f)).join("")
     : `<div class="empty">Aucune offre ne correspond à ces filtres.${f.zone === "abroad" && f.elig === "ok" ? "<br>Essaie « Oui ou probable » dans le filtre d'éligibilité." : ""}</div>`;
   $("#more").hidden = list.length <= state.shown;
   renderExternal(f);
@@ -349,6 +355,23 @@ function renderChips() {
   $("#chips").innerHTML = state.keywords.map((k, i) =>
     `<span class="chip${k.manual ? " manual" : ""}">${esc(k.t)}<button type="button" data-rm="${i}" aria-label="Retirer ${esc(k.t)}">×</button></span>`).join("");
   store(LS.kw, state.keywords);
+}
+
+function renderBanned() {
+  $("#banned").innerHTML = state.banned.map((c, i) =>
+    `<span class="chip banned">${esc(c)}<button type="button" data-unban="${i}" aria-label="Réafficher ${esc(c)}" title="Réafficher">×</button></span>`).join("");
+  const hiddenSet = new Set(state.banned.map(norm));
+  const names = [...new Set(state.offers.map((o) => o.company))].filter((c) => !hiddenSet.has(norm(c)));
+  $("#companyList").innerHTML = names.sort((a, b) => a.localeCompare(b, "fr")).map((c) => `<option value="${esc(c)}">`).join("");
+  store(LS.ban, state.banned);
+}
+function ban(name) {
+  name = String(name || "").trim();
+  if (!name || state.banned.some((c) => norm(c) === norm(name))) return;
+  // reprend l'orthographe officielle si l'entreprise existe dans les offres
+  const known = state.offers.find((o) => o._company === norm(name));
+  state.banned.push(known ? known.company : name);
+  renderBanned(); render(false);
 }
 
 function renderExternal(f) {
@@ -436,7 +459,13 @@ function bind() {
   $("#sectors").addEventListener("change", () => render());
   let t; $("#q").addEventListener("input", () => { clearTimeout(t); t = setTimeout(render, 180); });
   $("#more").addEventListener("click", () => { state.shown += PAGE_SIZE; render(false); });
+  $("#addBan").addEventListener("submit", (e) => { e.preventDefault(); ban($("#banInput").value); $("#banInput").value = ""; });
+  $("#banned").addEventListener("click", (e) => {
+    const i = e.target.dataset.unban; if (i === undefined) return;
+    state.banned.splice(+i, 1); renderBanned(); render(false);
+  });
   $("#results").addEventListener("click", (e) => {
+    if (e.target.dataset.ban) return ban(e.target.dataset.ban);
     const id = e.target.dataset.fav; if (!id) return;
     state.favs.has(id) ? state.favs.delete(id) : state.favs.add(id);
     store(LS.fav, [...state.favs]);
@@ -472,6 +501,7 @@ function restoreFilters() {
   if (cv && state.keywords.length) $("#dropLabel").innerHTML = `<strong>${esc(cv)}</strong> (profil enregistré) · cliquer pour remplacer`;
   try {
     await loadData();
+    renderBanned();
     scoreAll();
     render();
   } catch (e) {

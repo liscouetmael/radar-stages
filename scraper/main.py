@@ -25,8 +25,19 @@ COMPANY_SOURCES = ("talentsoft", "workday", "greenhouse", "lever", "ashby",
 AGGREGATORS = ("francetravail", "adzuna", "arbeitnow")
 
 
-def collect(cfg, only=None):
+def load_previous():
+    """Offres de la collecte précédente, par identifiant."""
+    try:
+        return {o["id"]: o for o in json.loads(OUT.read_text(encoding="utf-8")).get("offers", [])}
+    except Exception:
+        return {}
+
+
+def collect(cfg, only=None, previous=None, refresh=False):
+    previous = previous or {}
     ctx = {
+        "previous": previous,
+        "refresh": refresh,
         "search_terms": [t for t in cfg.get("search_terms") or [] if t],
         "search_terms_en": [t for t in cfg.get("search_terms_en") or cfg.get("search_terms") or [] if t],
         "max_age_days": cfg.get("max_age_days", 120),
@@ -34,19 +45,26 @@ def collect(cfg, only=None):
     }
     offers, stats, errors = [], {}, []
 
+    def run(label, fn):
+        try:
+            got = fn()
+            for o in got:
+                o["src"] = label
+            print(f"  {label:40s} {len(got):4d} stages")
+            stats[label] = len(got)
+        except Exception as e:
+            # Source en panne : on garde ses offres de la veille plutôt que de
+            # les faire disparaître du site.
+            got = [dict(o, _cached=True) for o in previous.values() if o.get("src") == label]
+            print(f"  {label:40s} ERREUR {e} ({len(got)} offres conservées)")
+            errors.append(f"{label}: {e}")
+        offers.extend(got)
+
     for name in COMPANY_SOURCES:
         if only and name not in only:
             continue
         for c in (cfg.get("companies") or {}).get(name, []) or []:
-            label = f"{name}:{c.get('name')}"
-            try:
-                got = ALL[name].fetch_company(c, ctx)
-                print(f"  {label:40s} {len(got):4d} stages")
-                offers += got
-                stats[label] = len(got)
-            except Exception as e:
-                print(f"  {label:40s} ERREUR {e}")
-                errors.append(f"{label}: {e}")
+            run(f"{name}:{c.get('name')}", lambda: ALL[name].fetch_company(c, ctx))
 
     for name in AGGREGATORS:
         if only and name not in only:
@@ -54,14 +72,7 @@ def collect(cfg, only=None):
         scfg = cfg.get(name) or {}
         if not scfg.get("enabled", True):
             continue
-        try:
-            got = ALL[name].fetch(scfg, ctx)
-            print(f"  {name:40s} {len(got):4d} stages")
-            offers += got
-            stats[name] = len(got)
-        except Exception as e:
-            traceback.print_exc()
-            errors.append(f"{name}: {e}")
+        run(name, lambda: ALL[name].fetch(scfg, ctx))
     return offers, stats, errors
 
 
@@ -86,35 +97,43 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*", help="sources à exécuter (debug)")
     ap.add_argument("--config", default=str(Path(__file__).parent / "config.yaml"))
+    ap.add_argument("--refresh", action="store_true",
+                    help="retélécharge aussi les fiches déjà connues (fait d'office le dimanche)")
     args = ap.parse_args(argv)
 
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
     home = cfg.get("home_country", "FR")
-    print("Collecte des offres…")
-    offers, stats, errors = collect(cfg, args.only)
+    previous = load_previous()
+    refresh = args.refresh or date.today().weekday() == 6
+    print("Collecte des offres…" + (" (rafraîchissement complet)" if refresh else ""))
+    offers, stats, errors = collect(cfg, args.only, previous, refresh)
 
-    # Date de première apparition, pour les sources qui ne datent pas leurs offres.
-    previous = {}
-    if OUT.exists():
-        try:
-            for o in json.loads(OUT.read_text(encoding="utf-8")).get("offers", []):
-                previous[o["id"]] = o.get("first_seen") or o.get("posted") or ""
-        except Exception:
-            pass
     today = date.today().isoformat()
-
     cutoff = (date.today() - timedelta(days=cfg.get("max_age_days", 120))).isoformat()
     maxlen = cfg.get("max_description_chars", 3500)
+    excluded = {norm(c) for c in cfg.get("excluded_companies") or []}
     final = []
     for o in dedupe(offers):
-        o["first_seen"] = previous.get(o["id"]) or today
+        if norm(o["company"]) in excluded:
+            continue
+        if o.pop("_cached", False):
+            # fiche reprise telle quelle de la collecte précédente (déjà enrichie)
+            final.append(o)
+            continue
+        # Date de première apparition, pour les sources qui ne datent pas leurs offres.
+        old = previous.get(o["id"]) or {}
+        o["first_seen"] = old.get("first_seen") or old.get("posted") or today
         if not o.get("posted"):
             o["posted"] = o["first_seen"]
             o["posted_estimated"] = True
-        if o["posted"] < cutoff:
-            continue
-        o["description"] = truncate((o.get("description") or "").strip(), maxlen)
-        final.append(enrich(o, home))
+        elif o["posted"] < cutoff:
+            continue  # une offre sans date réelle reste tant qu'elle est en ligne
+        # On analyse le texte COMPLET (les conditions d'éligibilité sont souvent
+        # tout en bas de l'offre), puis on tronque ce qui est stocké.
+        o["description"] = (o.get("description") or "").strip()
+        enrich(o, home)
+        o["description"] = truncate(o["description"], maxlen)
+        final.append(o)
     final.sort(key=lambda o: o.get("posted") or "", reverse=True)
 
     payload = {

@@ -28,6 +28,8 @@ GitHub Actions (tous les jours)              GitHub Pages (site statique)
   
   Par défaut, le mode « Étranger » n'affiche que les offres **explicitement ouvertes**. Tu peux élargir aux offres « probables ».
 - **Césure** : l'offre est classée « césure mentionnée », « fin d'études » ou « pas de césure » selon son texte.
+- **Entreprises masquées** : le lien « masquer » à côté du nom d'une entreprise retire toutes ses offres des résultats. La liste est gardée dans ton navigateur et se gère dans les filtres. Pour exclure une entreprise dès la collecte, ajoute son nom à `excluded_companies` dans `scraper/config.yaml`.
+- **Collecte incrémentale** : les fiches du CEA et de l'IRSN déjà connues ne sont pas retéléchargées chaque jour. Un rafraîchissement complet a lieu le dimanche, ou à la demande avec `python -m scraper.main --refresh`. Si une source est en panne, ses offres de la veille sont conservées.
 
 ## Mise en ligne sur GitHub (une seule fois)
 

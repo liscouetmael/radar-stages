@@ -24,6 +24,11 @@ search_terms_en:         # pour les pays non francophones
   - nuclear
   - simulation
 
+# Entreprises à ne jamais collecter (nom exact, insensible à la casse).
+# Pour masquer une entreprise seulement dans ton navigateur, utilise plutôt le
+# bouton "masquer" du site.
+excluded_companies: []
+
 # On ignore les offres plus anciennes que ça (jours).
 max_age_days: 120
 

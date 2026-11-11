@@ -35,7 +35,7 @@ def fetch_company(c, ctx):
         out.append({
             "id": f"sr-{c['slug']}-{p['id']}",
             "title": p["name"],
-            "company": (p.get("company") or {}).get("name") or c["name"],
+            "company": c["name"],
             "url": f"https://jobs.smartrecruiters.com/{c['slug']}/{p['id']}",
             "source": "SmartRecruiters",
             "location": ", ".join(x for x in (loc.get("city"), loc.get("region"),
