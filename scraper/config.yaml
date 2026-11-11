@@ -1,0 +1,101 @@
+# =============================================================================
+#  Configuration du collecteur d'offres de stage
+#  Modifie ce fichier pour ajouter des entreprises ou des mots-clés, puis
+#  pousse sur GitHub : la prochaine exécution (quotidienne) les prendra en compte.
+# =============================================================================
+
+# Pays de ton école (code ISO à 2 lettres). Toute offre hors de ce pays est
+# considérée comme "à l'étranger".
+home_country: FR
+
+# Mots-clés métier envoyés aux moteurs de recherche (France Travail, Adzuna).
+# Les sites carrières d'entreprises, eux, renvoient TOUS leurs stages : c'est
+# le classement par pertinence du site qui fait le tri.
+search_terms:            # en français (France, Belgique, Suisse)
+  - physique
+  - quantique
+  - astrophysique
+  - nucléaire
+  - simulation numérique
+search_terms_en:         # pour les pays non francophones
+  - physics
+  - quantum
+  - astrophysics
+  - nuclear
+  - simulation
+
+# On ignore les offres plus anciennes que ça (jours).
+max_age_days: 120
+
+# Taille max de la description stockée (caractères).
+max_description_chars: 3500
+
+# Nombre max d'offres détaillées par entreprise (Workday / SmartRecruiters
+# demandent une requête par offre).
+max_details_per_company: 150
+
+# -----------------------------------------------------------------------------
+#  Agrégateurs (clés API gratuites, à mettre dans les "Secrets" GitHub)
+# -----------------------------------------------------------------------------
+francetravail:
+  enabled: true            # nécessite FT_CLIENT_ID / FT_CLIENT_SECRET
+adzuna:
+  enabled: true            # nécessite ADZUNA_APP_ID / ADZUNA_APP_KEY
+  pages_per_query: 1
+  countries:               # pays -> mot "stage" dans la langue locale
+    fr: [stage]
+    be: [stage]
+    ch: [stage, internship]
+    gb: [internship]
+    us: [internship]
+    de: [internship, praktikum]
+    nl: [internship]
+    es: [internship]
+    it: [internship]
+    ca: [internship]
+    au: [internship]
+    sg: [internship]
+arbeitnow:
+  enabled: false           # job board allemand généraliste (peu de physique)
+  pages: 5
+
+# -----------------------------------------------------------------------------
+#  Sites carrières (API publiques des logiciels de recrutement)
+#  Pour trouver l'identifiant, regarde l'URL de la page carrière :
+#    boards.greenhouse.io/<slug>, jobs.lever.co/<slug>, jobs.ashbyhq.com/<slug>,
+#    jobs.smartrecruiters.com/<slug>, apply.workable.com/<slug>,
+#    <tenant>.wd3.myworkdayjobs.com/<site>, <site>.talent-soft.com
+# -----------------------------------------------------------------------------
+companies:
+  talentsoft:
+    - {base: "https://www.emploi.cea.fr",            name: CEA,  sector: Recherche publique}
+    - {base: "https://irsn-career.talent-soft.com",  name: IRSN, sector: Nucléaire & Fusion}
+  smartrecruiters:
+    - {slug: CERN,         name: CERN,         sector: Recherche publique}
+    - {slug: Assystem,     name: Assystem,     sector: Nucléaire & Fusion}
+    - {slug: Technicatome, name: Technicatome, sector: Nucléaire & Fusion}
+  workday:
+    - {tenant: arianegroup, wd: wd3, site: EXTERNALALL,              name: ArianeGroup, sector: Spatial & Astrophysique}
+    - {tenant: ag,          wd: wd3, site: Airbus,                   name: Airbus,      sector: Aéronautique & Défense}
+    - {tenant: thales,      wd: wd3, site: Careers,                  name: Thales,      sector: Aéronautique & Défense}
+    - {tenant: nvidia,      wd: wd5, site: NVIDIAExternalCareerSite, name: NVIDIA,      sector: Tech & Logiciel}
+  workable:
+    - {slug: quandela, name: Quandela, sector: Quantique}
+    - {slug: pasqal,   name: Pasqal,   sector: Quantique}
+  lever:
+    - {slug: alice-bob,     name: Alice & Bob,    sector: Quantique}
+    - {slug: c12qe,         name: C12 Quantum,    sector: Quantique}
+    - {slug: iqm,           name: IQM,            sector: Quantique}
+    - {slug: rigetti,       name: Rigetti,        sector: Quantique}
+    - {slug: atomcomputing, name: Atom Computing, sector: Quantique}
+    - {slug: transmutex,    name: Transmutex,     sector: Nucléaire & Fusion}
+  greenhouse:
+    - {slug: psiquantum, name: PsiQuantum, sector: Quantique}
+    - {slug: ionq,       name: IonQ,       sector: Quantique}
+    - {slug: riverlane,  name: Riverlane,  sector: Quantique}
+    - {slug: relativity, name: Relativity Space, sector: Spatial & Astrophysique}
+    - {slug: rocketlab,  name: Rocket Lab, sector: Spatial & Astrophysique}
+  ashby:
+    - {slug: multiverse, name: Multiverse Computing, sector: Quantique}
+    - {slug: sandboxaq,  name: SandboxAQ,  sector: Quantique}
+    - {slug: helion,     name: Helion Energy, sector: Nucléaire & Fusion}

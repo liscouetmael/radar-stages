@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Radar Stages</title>
+  <meta name="description" content="Trouve les offres de stage qui correspondent à ton CV, en France et à l'étranger.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%232f5bea'/><circle cx='16' cy='16' r='8' fill='none' stroke='white' stroke-width='2.5'/><circle cx='16' cy='16' r='2.5' fill='white'/></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="var(--accent)"/><circle cx="16" cy="16" r="8" fill="none" stroke="#fff" stroke-width="2.5"/><circle cx="16" cy="16" r="2.5" fill="#fff"/></svg>
+      <h1>Radar Stages</h1>
+    </div>
+    <p id="meta" class="muted">Chargement des offres…</p>
+  </header>
+
+  <div class="layout">
+    <!-- ================= PANNEAU GAUCHE ================= -->
+    <aside class="sidebar">
+      <section class="panel">
+        <h2>1. Mon profil</h2>
+        <label class="drop" id="drop">
+          <input type="file" id="cvFile" accept=".pdf,.docx,.txt,.md" hidden>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm-1 7V3.5L18.5 9zM8 13h8v2H8zm0 4h8v2H8z"/></svg>
+          <span id="dropLabel"><strong>Dépose ton CV</strong> ou clique (PDF, DOCX, TXT)</span>
+        </label>
+        <p class="hint">Ton CV est lu <strong>uniquement dans ton navigateur</strong> : rien n'est envoyé nulle part.</p>
+
+        <div class="kw-head">
+          <h3>Mots-clés du profil</h3>
+          <button class="link" id="clearKw" type="button">Tout effacer</button>
+        </div>
+        <div id="chips" class="chips"></div>
+        <form id="addKw" class="add-kw">
+          <input id="kwInput" type="text" placeholder="Ajouter : python, finance, supply chain…" autocomplete="off">
+          <button type="submit" class="btn small">Ajouter</button>
+        </form>
+        <p class="hint">Les mots-clés ajoutés à la main comptent double. Pense à mettre les mots en anglais <em>et</em> en français (ex. « gestion de projet » + « project management »).</p>
+      </section>
+
+      <section class="panel">
+        <h2>2. Filtres</h2>
+
+        <div class="field">
+          <span class="label">Localisation</span>
+          <div class="seg" id="zone">
+            <button type="button" data-v="all" class="on">Partout</button>
+            <button type="button" data-v="home">France</button>
+            <button type="button" data-v="abroad">Étranger</button>
+          </div>
+        </div>
+
+        <div class="field abroad-only" id="eligField" hidden>
+          <label class="label" for="elig">Ouvert aux étudiants d'écoles françaises</label>
+          <select id="elig">
+            <option value="ok">Oui, explicitement</option>
+            <option value="probable">Oui ou probable (UE / Suisse)</option>
+            <option value="notko">Tout sauf les exclus</option>
+          </select>
+          <p class="hint">Détection automatique à partir du texte de l'offre (convention de stage, Erasmus, visa, « inscrit dans une université américaine »…). L'extrait qui justifie la décision est affiché sur chaque offre.</p>
+        </div>
+
+        <div class="field">
+          <label class="label" for="country">Pays</label>
+          <select id="country"><option value="">Tous les pays</option></select>
+        </div>
+
+        <div class="field">
+          <label class="label" for="cesure">Césure</label>
+          <select id="cesure">
+            <option value="">Peu importe</option>
+            <option value="yes">Césure mentionnée</option>
+            <option value="notend">Exclure « fin d'études uniquement »</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="label" for="age">Date de l'offre</label>
+          <select id="age">
+            <option value="">Toutes</option>
+            <option value="7">Moins de 7 jours</option>
+            <option value="30">Moins de 30 jours</option>
+            <option value="90">Moins de 3 mois</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="label" for="duration">Durée</label>
+          <select id="duration">
+            <option value="">Toutes</option>
+            <option value="short">3 mois ou moins</option>
+            <option value="mid">4 à 5 mois</option>
+            <option value="six">6 mois</option>
+            <option value="long">Plus de 6 mois</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <span class="label">Secteur</span>
+          <div id="sectors" class="checks"></div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="source">Source</label>
+          <select id="source"><option value="">Toutes</option></select>
+        </div>
+
+        <label class="check"><input type="checkbox" id="matchOnly" checked> Seulement les offres contenant au moins un de mes mots-clés</label>
+        <label class="check"><input type="checkbox" id="favOnly"> Seulement mes favoris</label>
+        <button type="button" class="link" id="reset">Réinitialiser les filtres</button>
+      </section>
+
+      <section class="panel">
+        <h2>Chercher aussi sur…</h2>
+        <p class="hint">Ces sites n'autorisent pas la collecte automatique : voici ta recherche déjà préparée.</p>
+        <div id="external" class="external"></div>
+        <h3 class="sub-h">Organismes à consulter directement</h3>
+        <div id="orgs" class="external"></div>
+      </section>
+    </aside>
+
+    <!-- ================= RÉSULTATS ================= -->
+    <main>
+      <div class="toolbar">
+        <div class="search">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M10 2a8 8 0 0 1 6.32 12.9l5.39 5.4-1.41 1.4-5.4-5.39A8 8 0 1 1 10 2m0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12"/></svg>
+          <input id="q" type="search" placeholder="Filtrer : intitulé, entreprise, ville… (tous les mots requis)">
+        </div>
+        <label class="sort">Trier par
+          <select id="sort">
+            <option value="relevance">Pertinence</option>
+            <option value="date">Date (récent)</option>
+            <option value="duration">Durée</option>
+            <option value="company">Entreprise (A→Z)</option>
+          </select>
+        </label>
+      </div>
+      <p id="count" class="count"></p>
+      <div id="results" class="results"></div>
+      <button id="more" class="btn ghost more" type="button" hidden>Afficher plus d'offres</button>
+    </main>
+  </div>
+
+  <footer class="foot muted">
+    Offres collectées automatiquement chaque jour depuis les sites carrières des entreprises et des API publiques.
+    Vérifie toujours les conditions sur l'offre d'origine.
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
