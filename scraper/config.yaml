@@ -17,12 +17,18 @@ search_terms:            # en français (France, Belgique, Suisse)
   - astrophysique
   - nucléaire
   - simulation numérique
+  - Monte-Carlo
+  - mathématiques appliquées
+  - calcul scientifique
 search_terms_en:         # pour les pays non francophones
   - physics
   - quantum
   - astrophysics
   - nuclear
   - simulation
+  - Monte Carlo
+  - applied mathematics
+  - scientific computing
 
 # Entreprises à ne jamais collecter (nom exact, insensible à la casse).
 # Pour masquer une entreprise seulement dans ton navigateur, utilise plutôt le
@@ -87,6 +93,7 @@ companies:
   workable:
     - {slug: quandela, name: Quandela, sector: Quantique}
     - {slug: pasqal,   name: Pasqal,   sector: Quantique}
+    - {slug: flexcompute, name: Flexcompute, sector: Simulation & Calcul scientifique}
   lever:
     - {slug: alice-bob,     name: Alice & Bob,    sector: Quantique}
     - {slug: c12qe,         name: C12 Quantum,    sector: Quantique}
@@ -100,7 +107,37 @@ companies:
     - {slug: riverlane,  name: Riverlane,  sector: Quantique}
     - {slug: relativity, name: Relativity Space, sector: Spatial & Astrophysique}
     - {slug: rocketlab,  name: Rocket Lab, sector: Spatial & Astrophysique}
+    # Fusion et nucléaire (neutronique, codes Monte-Carlo)
+    - {slug: pacificfusion, name: Pacific Fusion, sector: Nucléaire & Fusion}
+    - {slug: marvelfusion,  name: Marvel Fusion,  sector: Nucléaire & Fusion}
+    - {slug: kairospower,   name: Kairos Power,   sector: Nucléaire & Fusion}
+    - {slug: oklo,          name: Oklo,           sector: Nucléaire & Fusion}
+    # Simulation et calcul scientifique
+    - {slug: physicsx,  name: PhysicsX,  sector: Simulation & Calcul scientifique}
+    - {slug: graphcore, name: Graphcore, sector: Simulation & Calcul scientifique}
+    # Finance quantitative (Monte-Carlo, probabilités, statistiques)
+    - {slug: quberesearchandtechnologies, name: Qube Research & Technologies,  sector: Finance quantitative}
+    - {slug: squarepointcapital,          name: Squarepoint Capital,           sector: Finance quantitative}
+    - {slug: janestreet,                  name: Jane Street,                   sector: Finance quantitative}
+    - {slug: optiverus,                   name: Optiver,                       sector: Finance quantitative}
+    - {slug: imc,                         name: IMC Trading,                   sector: Finance quantitative}
+    - {slug: drweng,                      name: DRW,                           sector: Finance quantitative}
+    - {slug: wehrtyou,                    name: Hudson River Trading,          sector: Finance quantitative}
+    - {slug: jumptrading,                 name: Jump Trading,                  sector: Finance quantitative}
+    - {slug: flowtraders,                 name: Flow Traders,                  sector: Finance quantitative}
+    - {slug: towerresearchcapital,        name: Tower Research Capital,        sector: Finance quantitative}
+    - {slug: virtu,                       name: Virtu Financial,               sector: Finance quantitative}
+    - {slug: akunacapital,                name: Akuna Capital,                 sector: Finance quantitative}
+    - {slug: worldquant,                  name: WorldQuant,                    sector: Finance quantitative}
+    - {slug: aqr,                         name: AQR,                           sector: Finance quantitative}
+    - {slug: pdtpartners,                 name: PDT Partners,                  sector: Finance quantitative}
   ashby:
     - {slug: multiverse, name: Multiverse Computing, sector: Quantique}
     - {slug: sandboxaq,  name: SandboxAQ,  sector: Quantique}
     - {slug: helion,     name: Helion Energy, sector: Nucléaire & Fusion}
+    - {slug: proxima-fusion, name: Proxima Fusion, sector: Nucléaire & Fusion}
+    - {slug: radiant,        name: Radiant,        sector: Nucléaire & Fusion}
+    - {slug: neuralconcept,  name: Neural Concept, sector: Simulation & Calcul scientifique}
+    - {slug: rescale,        name: Rescale,        sector: Simulation & Calcul scientifique}
+    - {slug: cuspai,         name: CuspAI,         sector: Simulation & Calcul scientifique}
+    - {slug: periodic-labs,  name: Periodic Labs,  sector: Simulation & Calcul scientifique}
