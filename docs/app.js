@@ -156,7 +156,12 @@ function openTokenDialog(err) {
   $("#tokErr").hidden = !err;
   $("#tokErr").textContent = err ? "Erreur : " + err : "";
   $("#tokInput").value = "";
-  $("#refreshDlg").showModal();
+  const dlg = $("#refreshDlg");
+  if (typeof dlg.showModal === "function") return dlg.showModal();
+  // navigateurs sans <dialog> : simple invite
+  const t = (prompt((err ? "Erreur : " + err + "\n\n" : "") +
+    "Colle un jeton GitHub fine-grained (dépôt " + GH.repo + ", permission Actions : Read and write) :") || "").trim();
+  if (t) { setToken(t); startRefresh(); }
 }
 
 async function startRefresh() {
