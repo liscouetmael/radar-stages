@@ -52,6 +52,19 @@ a { color: var(--accent); }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand h1 { font-size: 20px; letter-spacing: -.01em; }
 .topbar p { margin: 0; font-size: 13px; }
+.top-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#refresh:disabled { opacity: .6; cursor: progress; }
+dialog {
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+  color: var(--text); padding: 20px; width: min(480px, calc(100vw - 32px)); box-shadow: 0 10px 40px rgba(0,0,0,.25);
+}
+dialog::backdrop { background: rgba(10, 12, 20, .45); }
+dialog h2 { font-size: 17px; margin-bottom: 10px; }
+dialog p, dialog li { font-size: 13.5px; }
+dialog ol { padding-left: 20px; margin: 8px 0; }
+dialog li { margin-bottom: 6px; }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.hint.err { color: var(--ko); }
 
 /* ---------- Layout ---------- */
 .layout {
@@ -95,7 +108,7 @@ a { color: var(--accent); }
 .add-kw { display: flex; gap: 6px; margin-top: 10px; }
 
 /* ---------- Form controls ---------- */
-input[type="text"], input[type="search"], select {
+input[type="text"], input[type="search"], input[type="password"], select {
   font: inherit; color: var(--text); background: var(--surface);
   border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; width: 100%;
   min-width: 0;

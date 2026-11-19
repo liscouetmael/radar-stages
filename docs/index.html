@@ -14,8 +14,29 @@
       <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="var(--accent)"/><circle cx="16" cy="16" r="8" fill="none" stroke="#fff" stroke-width="2.5"/><circle cx="16" cy="16" r="2.5" fill="#fff"/></svg>
       <h1>Radar Stages</h1>
     </div>
-    <p id="meta" class="muted">Chargement des offres…</p>
+    <div class="top-right">
+      <p id="meta" class="muted">Chargement des offres…</p>
+      <button id="refresh" class="btn ghost small" type="button" title="Relancer la collecte des offres maintenant">↻ Actualiser</button>
+    </div>
   </header>
+
+  <dialog id="refreshDlg">
+    <form method="dialog">
+      <h2>Relancer la collecte</h2>
+      <p>La collecte tourne sur GitHub et prend en général 3 à 5 minutes (plus le dimanche). Pour la lancer depuis le site, il faut un jeton GitHub limité à ce dépôt. Le jeton reste enregistré dans ce navigateur uniquement.</p>
+      <ol>
+        <li><a id="tokLink" target="_blank" rel="noopener">Crée un jeton « fine-grained »</a> : <i>Repository access</i> → <i>Only select repositories</i> → <b id="repoName">radar-stages</b>, puis <i>Permissions</i> → <i>Actions</i> : <b>Read and write</b>.</li>
+        <li>Colle-le ici :</li>
+      </ol>
+      <input type="password" id="tokInput" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
+      <p id="tokErr" class="hint err" hidden></p>
+      <div class="dlg-actions">
+        <button value="cancel" class="btn ghost small">Annuler</button>
+        <button id="tokSave" value="ok" class="btn small">Enregistrer et lancer</button>
+      </div>
+      <p class="hint">Sans jeton : <a id="actionsLink" target="_blank" rel="noopener">lance la collecte depuis GitHub</a> (bouton « Run workflow »), puis recharge cette page quelques minutes plus tard.</p>
+    </form>
+  </dialog>
 
   <div class="layout">
     <!-- ================= PANNEAU GAUCHE ================= -->
@@ -158,6 +179,7 @@
   <footer class="foot muted">
     Offres collectées automatiquement chaque jour depuis les sites carrières des entreprises et des API publiques.
     Vérifie toujours les conditions sur l'offre d'origine.
+    <span id="tokInfo" hidden><br>Jeton GitHub enregistré dans ce navigateur · <button type="button" class="link" id="tokForget">l'oublier</button></span>
   </footer>
 
   <script src="app.js"></script>

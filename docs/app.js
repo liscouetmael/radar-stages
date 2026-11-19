@@ -80,11 +80,17 @@ function grams(text) {
 }
 
 // ---------------------------------------------------------------- data
-async function loadData() {
-  const res = await fetch("data/offers.json", { cache: "no-cache" });
+async function fetchData() {
+  const res = await fetch("data/offers.json?t=" + Date.now(), { cache: "no-store" });
   if (!res.ok) throw new Error("HTTP " + res.status);
-  const data = await res.json();
+  return res.json();
+}
+
+async function loadData(data) {
+  data = data || await fetchData();
   state.data = data;
+  state.df = new Map();
+  state.kwCache = new Map();
   state.offers = data.offers.map((o) => ({
     ...o,
     _company: norm(o.company),
@@ -97,8 +103,143 @@ async function loadData() {
   for (const o of state.offers) {
     for (const g of new Set(grams(o.title + " " + o.description))) state.df.set(g, (state.df.get(g) || 0) + 1);
   }
-  const gen = new Date(data.generated_at);
+  showMeta();
+}
+
+function showMeta() {
+  const gen = new Date(state.data.generated_at);
   $("#meta").textContent = `${state.N} offres · mises à jour le ${gen.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à ${gen.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+// ---------------------------------------------------------------- actualisation manuelle
+// Relance le workflow GitHub Actions (workflow_dispatch) avec un jeton fine-grained
+// enregistré dans ce navigateur, suit son exécution, puis recharge les offres une
+// fois GitHub Pages mis à jour.
+const GH = (() => {
+  const h = location.hostname, seg = location.pathname.split("/").filter(Boolean)[0];
+  const owner = h.endsWith(".github.io") ? h.split(".")[0] : "liscouetmael";
+  const repo = h.endsWith(".github.io") && seg ? seg : "radar-stages";
+  return { owner, repo, workflow: "scrape.yml", api: `https://api.github.com/repos/${owner}/${repo}` };
+})();
+const LS_TOK = "rs.ghToken", LS_RUN = "rs.refreshRun";
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let refreshing = false;
+
+function getToken() { try { return localStorage.getItem(LS_TOK) || ""; } catch { return ""; } }
+function setToken(t) {
+  try { t ? localStorage.setItem(LS_TOK, t) : localStorage.removeItem(LS_TOK); } catch {}
+  $("#tokInfo").hidden = !t;
+}
+
+async function gh(path, opts = {}) {
+  const res = await fetch(GH.api + path, {
+    ...opts,
+    headers: { Accept: "application/vnd.github+json", Authorization: "Bearer " + getToken(),
+               "X-GitHub-Api-Version": "2022-11-28", ...(opts.body ? { "Content-Type": "application/json" } : {}) },
+  });
+  if (res.status === 401 || res.status === 403 || res.status === 404) {
+    const e = new Error(res.status === 401 ? "jeton invalide ou expiré" : "jeton sans la permission « Actions : Read and write » sur " + GH.repo);
+    e.auth = true; throw e;
+  }
+  if (!res.ok) throw new Error("GitHub a répondu " + res.status);
+  return res.status === 204 ? null : res.json();
+}
+
+function setRefreshUI(busy, text) {
+  const b = $("#refresh");
+  b.disabled = busy;
+  b.textContent = busy ? "↻ Collecte…" : "↻ Actualiser";
+  if (text) $("#meta").textContent = text;
+}
+
+function openTokenDialog(err) {
+  $("#tokErr").hidden = !err;
+  $("#tokErr").textContent = err ? "Erreur : " + err : "";
+  $("#tokInput").value = "";
+  $("#refreshDlg").showModal();
+}
+
+async function startRefresh() {
+  if (refreshing) return;
+  if (!getToken()) return openTokenDialog();
+  refreshing = true;
+  const since = Date.now() - 5000;
+  try {
+    setRefreshUI(true, "Lancement de la collecte…");
+    await gh(`/actions/workflows/${GH.workflow}/dispatches`, { method: "POST", body: JSON.stringify({ ref: "main" }) });
+    try { localStorage.setItem(LS_RUN, String(since)); } catch {}
+    await followRun(since);
+  } catch (e) {
+    endRefresh();
+    if (e.auth) { setToken(""); openTokenDialog(e.message); }
+    else $("#meta").textContent = "Actualisation impossible : " + e.message;
+  }
+}
+
+async function followRun(since) {
+  refreshing = true;
+  const prevGen = state.data?.generated_at;
+  const t0 = Date.now();
+  const elapsed = () => Math.max(1, Math.round((Date.now() - since) / 60000)) + " min";
+  let run = null;
+  // 1) attendre que l'exécution apparaisse puis se termine
+  while (Date.now() - t0 < 50 * 60000) {
+    const d = await gh(`/actions/workflows/${GH.workflow}/runs?event=workflow_dispatch&per_page=5`);
+    run = (d.workflow_runs || []).find((r) => new Date(r.created_at).getTime() >= since) || null;
+    if (run && run.status === "completed") break;
+    setRefreshUI(true, run ? `Collecte en cours sur GitHub… (${elapsed()})` : "Collecte en attente de démarrage…");
+    await sleep(15000);
+  }
+  if (!run || run.status !== "completed") throw new Error("la collecte n'a pas fini à temps");
+  if (run.conclusion !== "success") {
+    endRefresh();
+    $("#meta").innerHTML = `La collecte a échoué · <a href="${esc(run.html_url)}" target="_blank" rel="noopener">voir le détail</a>`;
+    return;
+  }
+  // 2) attendre que GitHub Pages serve le nouveau fichier
+  setRefreshUI(true, "Collecte terminée, publication du site…");
+  for (let i = 0; i < 24; i++) {
+    const data = await fetchData().catch(() => null);
+    if (data && data.generated_at !== prevGen) {
+      await loadData(data);
+      renderBanned(); scoreAll(); render();
+      endRefresh();
+      const n = state.data.errors?.length;
+      if (n) $("#meta").textContent += ` · ${n} source(s) en erreur`;
+      return;
+    }
+    await sleep(10000);
+  }
+  endRefresh();
+  if (state.data) showMeta();
+  $("#meta").textContent += " · collecte finie, recharge la page dans une minute";
+}
+
+function endRefresh() {
+  refreshing = false;
+  try { localStorage.removeItem(LS_RUN); } catch {}
+  setRefreshUI(false);
+}
+
+function bindRefresh() {
+  $("#tokLink").href = "https://github.com/settings/personal-access-tokens/new?name=radar-stages&description=Actualiser+Radar+Stages&actions=write";
+  $("#actionsLink").href = `https://github.com/${GH.owner}/${GH.repo}/actions/workflows/${GH.workflow}`;
+  $("#repoName").textContent = GH.repo;
+  $("#tokInfo").hidden = !getToken();
+  $("#refresh").addEventListener("click", startRefresh);
+  $("#tokForget").addEventListener("click", () => setToken(""));
+  $("#refreshDlg").addEventListener("close", () => {
+    const t = $("#tokInput").value.trim();
+    if ($("#refreshDlg").returnValue === "ok" && t) { setToken(t); startRefresh(); }
+  });
+}
+
+// Reprend le suivi si la page a été rechargée pendant une collecte lancée d'ici.
+function resumeRefresh() {
+  let since = 0;
+  try { since = +localStorage.getItem(LS_RUN) || 0; } catch {}
+  if (!since || !getToken() || Date.now() - since > 50 * 60000) { if (since) endRefresh(); return; }
+  followRun(since).catch((e) => { endRefresh(); $("#meta").textContent = "Actualisation impossible : " + e.message; });
 }
 
 // ---------------------------------------------------------------- CV
@@ -495,6 +636,7 @@ function restoreFilters() {
 
 (async function init() {
   bind();
+  bindRefresh();
   restoreFilters();
   renderChips();
   const cv = load(LS.cv, null);
@@ -504,6 +646,7 @@ function restoreFilters() {
     renderBanned();
     scoreAll();
     render();
+    resumeRefresh();
   } catch (e) {
     $("#meta").textContent = "Impossible de charger les offres.";
     $("#results").innerHTML = `<div class="empty">Le fichier <code>data/offers.json</code> est introuvable (${esc(e.message)}).<br>Lance le collecteur : <code>python -m scraper.main</code></div>`;
