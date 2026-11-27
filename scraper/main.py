@@ -118,6 +118,8 @@ def main(argv=None):
             continue
         if o.pop("_cached", False):
             # fiche reprise telle quelle de la collecte précédente (déjà enrichie)
+            if not o.get("posted_estimated") and o.get("posted") and o["posted"] < cutoff:
+                continue
             final.append(o)
             continue
         # Date de première apparition, pour les sources qui ne datent pas leurs offres.

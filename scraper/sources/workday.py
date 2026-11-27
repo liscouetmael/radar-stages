@@ -1,7 +1,10 @@
 """Workday (Airbus, Thales, Sanofi...) :
 POST https://<tenant>.<wd>.myworkdayjobs.com/wday/cxs/<tenant>/<site>/jobs"""
 import re
+import time
 from datetime import date, timedelta
+
+import requests
 
 from ..geo import country_from_name, guess_country
 from ..http import get_json, post_json
@@ -9,6 +12,24 @@ from ..text import html_to_text, is_internship
 
 QUERIES = ["intern", "stage", "internship", "praktikum"]
 PAGE = 20
+# Workday limite le débit par adresse IP : on espace les requêtes et, en cas de
+# 429, on patiente avant de réessayer.
+PAUSE = 1.0
+WAITS = (20, 60, 120)
+
+
+def _call(fn, *a):
+    for wait in (*WAITS, None):
+        time.sleep(PAUSE)
+        try:
+            return fn(*a)
+        except requests.exceptions.RetryError:
+            if wait is None:
+                raise
+        except requests.HTTPError as e:
+            if wait is None or e.response is None or e.response.status_code != 429:
+                raise
+        time.sleep(wait)
 
 
 def _posted(s: str) -> str:
@@ -31,8 +52,8 @@ def fetch_company(c, ctx):
     for q in QUERIES:
         offset = 0
         while offset < 400 and len(hits) < ctx["max_details"]:
-            data = post_json(f"{api}/jobs", {"appliedFacets": {}, "limit": PAGE,
-                                             "offset": offset, "searchText": q})
+            data = _call(post_json, f"{api}/jobs", {"appliedFacets": {}, "limit": PAGE,
+                                                    "offset": offset, "searchText": q})
             posts = data.get("jobPostings", [])
             for p in posts:
                 path = p.get("externalPath")
@@ -46,16 +67,21 @@ def fetch_company(c, ctx):
     out = []
     for p in hits[: ctx["max_details"]]:
         path = p["externalPath"]
+        oid = f"wd-{c['tenant']}-{path.rsplit('_', 1)[-1]}"
+        known = ctx.get("previous", {}).get(oid)
+        if known and known.get("description") and not ctx.get("refresh"):
+            out.append(dict(known, _cached=True))   # fiche déjà connue : pas de requête
+            continue
         info = {}
         try:
-            info = get_json(f"{api}{path}").get("jobPostingInfo", {})
+            info = _call(get_json, f"{api}{path}").get("jobPostingInfo", {})
         except Exception:
             pass
         loc = info.get("location") or p.get("locationsText", "")
         country = country_from_name((info.get("country") or {}).get("descriptor", "")) \
             or guess_country(loc)
         out.append({
-            "id": f"wd-{c['tenant']}-{path.rsplit('_', 1)[-1]}",
+            "id": oid,
             "title": p["title"],
             "company": c["name"],
             "url": info.get("externalUrl") or f"{host}/{c['site']}{path}",
