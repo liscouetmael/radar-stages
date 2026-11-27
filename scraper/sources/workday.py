@@ -15,7 +15,7 @@ PAGE = 20
 # Workday limite le débit par adresse IP : on espace les requêtes et, en cas de
 # 429, on patiente avant de réessayer.
 PAUSE = 1.0
-WAITS = (20, 60, 120)
+WAITS = (30, 90)
 
 
 def _call(fn, *a):
@@ -45,24 +45,51 @@ def _posted(s: str) -> str:
     return ""
 
 
+_FACET_YES = re.compile(r"intern|trainee|stagi|thesis|praktik|student", re.I)
+_FACET_NO = re.compile(r"apprenti|professional contract|graduate|alternan", re.I)
+
+
+def _intern_facet(api):
+    """Identifiants des valeurs « stage » de la facette workerSubType (Job Type)."""
+    data = _call(post_json, f"{api}/jobs", {"appliedFacets": {}, "limit": 1, "offset": 0,
+                                            "searchText": ""})
+    for f in data.get("facets", []):
+        if f.get("facetParameter") == "workerSubType":
+            return [v["id"] for v in f.get("values", [])
+                    if _FACET_YES.search(v.get("descriptor", ""))
+                    and not _FACET_NO.search(v.get("descriptor", ""))]
+    return []
+
+
 def fetch_company(c, ctx):
     host = f"https://{c['tenant']}.{c['wd']}.myworkdayjobs.com"
     api = f"{host}/wday/cxs/{c['tenant']}/{c['site']}"
     seen, hits = set(), []
-    for q in QUERIES:
-        offset = 0
-        while offset < 400 and len(hits) < ctx["max_details"]:
-            data = _call(post_json, f"{api}/jobs", {"appliedFacets": {}, "limit": PAGE,
+
+    def scan(facets, q, trust):
+        offset, total = 0, None
+        while offset < 1000 and len(hits) < ctx["max_details"]:
+            data = _call(post_json, f"{api}/jobs", {"appliedFacets": facets, "limit": PAGE,
                                                     "offset": offset, "searchText": q})
             posts = data.get("jobPostings", [])
             for p in posts:
                 path = p.get("externalPath")
-                if path and path not in seen and is_internship(p.get("title", "")):
+                if path and path not in seen and (trust or is_internship(p.get("title", ""))):
                     seen.add(path)
                     hits.append(p)
             offset += PAGE
-            if not posts or offset >= data.get("total", 0):
+            if total is None:  # Workday ne renvoie le total que sur la première page
+                total = data.get("total") or 0
+            if not posts or offset >= total:
                 break
+
+    # 1) filtre natif « Job Type » = stage : peu de requêtes et rien de raté
+    ids = _intern_facet(api)
+    if ids:
+        scan({"workerSubType": ids}, "", True)
+    else:  # 2) à défaut, recherche par mots-clés
+        for q in QUERIES:
+            scan({}, q, False)
 
     out = []
     for p in hits[: ctx["max_details"]]:
