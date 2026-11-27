@@ -1,5 +1,6 @@
 """Workday (Airbus, Thales, Sanofi...) :
 POST https://<tenant>.<wd>.myworkdayjobs.com/wday/cxs/<tenant>/<site>/jobs"""
+import os
 import re
 import time
 from datetime import date, timedelta
@@ -14,21 +15,29 @@ QUERIES = ["intern", "stage", "internship", "praktikum"]
 PAGE = 20
 # Workday limite le débit par adresse IP : on espace les requêtes et, en cas de
 # 429, on patiente avant de réessayer.
-PAUSE = 1.0
+# Les serveurs de GitHub Actions sont limités bien plus vite qu'un poste perso.
+PAUSE = 3.0 if os.environ.get("GITHUB_ACTIONS") else 1.0
 WAITS = (30, 90)
+_count = {"n": 0}
+
+
+class Blocked(Exception):
+    pass
 
 
 def _call(fn, *a):
     for wait in (*WAITS, None):
         time.sleep(PAUSE)
+        _count["n"] += 1
         try:
             return fn(*a)
         except requests.exceptions.RetryError:
-            if wait is None:
-                raise
+            pass
         except requests.HTTPError as e:
-            if wait is None or e.response is None or e.response.status_code != 429:
+            if e.response is None or e.response.status_code != 429:
                 raise
+        if wait is None:
+            raise Blocked(f"Workday renvoie 429 (limite de débit) après {_count['n']} requêtes")
         time.sleep(wait)
 
 
@@ -84,12 +93,18 @@ def fetch_company(c, ctx):
                 break
 
     # 1) filtre natif « Job Type » = stage : peu de requêtes et rien de raté
-    ids = _intern_facet(api)
-    if ids:
-        scan({"workerSubType": ids}, "", True)
-    else:  # 2) à défaut, recherche par mots-clés
-        for q in QUERIES:
-            scan({}, q, False)
+    try:
+        ids = _intern_facet(api)
+        if ids:
+            scan({"workerSubType": ids}, "", True)
+        else:  # 2) à défaut, recherche par mots-clés
+            for q in QUERIES:
+                scan({}, q, False)
+    except Blocked:
+        if not hits:
+            raise
+        print(f"    [workday:{c['name']}] bloqué en cours de liste, {len(hits)} offres gardées")
+    blocked = False
 
     out = []
     for p in hits[: ctx["max_details"]]:
@@ -100,10 +115,16 @@ def fetch_company(c, ctx):
             out.append(dict(known, _cached=True))   # fiche déjà connue : pas de requête
             continue
         info = {}
-        try:
-            info = _call(get_json, f"{api}{path}").get("jobPostingInfo", {})
-        except Exception:
-            pass
+        if not blocked:
+            try:
+                info = _call(get_json, f"{api}{path}").get("jobPostingInfo", {})
+            except Blocked:
+                blocked = True  # inutile d'insister : on garde l'intitulé seul
+            except Exception:
+                pass
+        if not info and known:
+            out.append(dict(known, _cached=True))
+            continue
         loc = info.get("location") or p.get("locationsText", "")
         country = country_from_name((info.get("country") or {}).get("descriptor", "")) \
             or guess_country(loc)
